@@ -60,6 +60,7 @@ At this point it is worth a `reboot` to see if all the changes stick. Then try i
 If that works, you can create a `systemd` service (modified from the existing `kvmd-oled*` services) to start the script on boot and manage its lifecycle:
 
 ```
+# rw
 # cd /etc/systemd/system
 # cp /usr/lib/systemd/system/kvmd-oled.service kvmd-oled-custom.service
 # cp /usr/lib/systemd/system/kvmd-oled-shutdown.service kvmd-oled-custom-shutdown.service
