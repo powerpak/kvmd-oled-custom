@@ -3,6 +3,7 @@
 #    KVMD-OLED - A small OLED daemon for PiKVM.                              #
 #                                                                            #
 #    Copyright (C) 2018-2024  Maxim Devaev <mdevaev@gmail.com>               #
+#                       2026  Theodore Pak                                   #
 #                                                                            #
 #    This program is free software: you can redistribute it and/or modify    #
 #    it under the terms of the GNU General Public License as published by    #
@@ -55,7 +56,7 @@ def _get_data_path(subdir: str, name: str) -> str:
 
 
 def _create_device(options: argparse.Namespace) -> luma_device:
-    # We are using this hack to make ssd1305 devices on the SPI interface, like the Adafruit
+    # We are using this workaround to add SSD1305 devices on the SPI interface, like the Adafruit
     # 2.23" monochrome OLED bonnet https://learn.adafruit.com/adafruit-2-23-monochrome-oled-bonnet
     # and its Waveshare clone https://www.pishop.us/product/128-32-2-23inch-oled-display-hat-for-raspberry-pi/
     # work with the existing ssd1306 device code provided by luma.oled:
