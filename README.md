@@ -27,7 +27,7 @@ Obtain shell access on your PiKVM (either via the web terminal or SSH) and run `
 
 I typically repurpose the preconfigured `kvmd-oled` user on the PiKVM OS to run this daemon. The daemon's user must be given access to GPIO and either I2C or SPI, depending on the way the screen was connected. For instance, the Waveshare screen is wired for SPI out of the box, but you can [re-solder six resistors](https://www.waveshare.com/wiki/2.23inch_OLED_HAT#PINS) to make it use I2C.
 
-The Linux kernel must have I2C and/or SPI enabled with a `dtparam` line in `/boot/config.txt`, as in [this example](https://www.raspberrypi.com/documentation/computers/configuration.html#part3.2). Then, the user must be in the `spi`, `i2c`, and `gpio` groups to properly access GPIO.
+The Pi's firmware must have I2C and/or SPI enabled using a `dtparam` line in `/boot/config.txt`, as in [this example](https://www.raspberrypi.com/documentation/computers/configuration.html#part3.2). Then, the user must be in the `spi`, `i2c`, and `gpio` groups to properly access GPIO.
 
 Furthermore, in order for the daemon to access the `/run/kvmd/kvmd.sock` Unix socket and authenticate with `kvmd`, the daemon's user must also be part of the `kvmd` and `kvmd-selfauth` groups. The `kvmd-oled` user is usually already in these groups, but you can verify and fix if necessary with:
 
