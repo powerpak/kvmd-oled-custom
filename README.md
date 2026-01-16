@@ -67,11 +67,14 @@ If that works, you can create a `systemd` service (modified from the existing `k
 # cp /usr/lib/systemd/system/kvmd-oled-reboot.service kvmd-oled-custom-reboot.service
 ```
 
-Modify these `.service` files to point to `/opt/kvmd-oled-custom/kvmd-oled-custom` and use the extra arguments you prefer. If you are using SPI and not I2C, you need to make this change to `kvmd-oled-custom.service`:
+Modify these `.service` files to execute `/opt/kvmd-oled-custom/kvmd-oled-custom` with the arguments you prefer. The top of `kvmd-oled-custom.service` should be adjusted to start only after `kvmd` and when the correct interface in `/dev` is present:
 
 ```
 [Unit]
-ConditionPathExists=/dev/spidev0.0  # rather than /dev/i2c-1
+Description=PiKVM - A small OLED daemon
+After=systemd-modules-load.service kvmd.service
+Wants=kvmd.service
+ConditionPathExists=/dev/spidev0.0  # If you are using SPI; for I2C, use /dev/i2c-1
 ```
 
 Also, ensure that the `ExecStart` lines in the `-shutdown` and `-reboot` services are finding the PID of the `kvmd-oled-custom` service, not `kvmd-oled`.
