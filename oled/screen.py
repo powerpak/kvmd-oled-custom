@@ -52,7 +52,7 @@ class Screen:  # pylint: disable=too-many-instance-attributes
 
         self.__spinner_coords = spinner_coords
         self.__spinner_angle = 0
-        self.__spinner_radius = 5
+        self.__spinner_radius = 4
         self.__spinner_angle_increment = 30
 
         self.__swim_interval = 0.0
