@@ -88,7 +88,7 @@ class Screen:  # pylint: disable=too-many-instance-attributes
             x1 = offset[0] + self.__spinner_coords[0] + self.__spinner_radius
             y0 = offset[1] + self.__spinner_coords[1] - self.__spinner_radius
             y1 = offset[1] + self.__spinner_coords[1] + self.__spinner_radius
-            draw.chord([x0, x1, y0, y1], self.__spinner_angle, (self.__spinner_angle + 180) % 360, outline="white")
+            draw.chord([x0, y0, x1, y1], self.__spinner_angle, (self.__spinner_angle + 180) % 360, outline="white")
             self.__spinner_angle = (self.__spinner_angle + self.__spinner_angle_increment) % 360
 
     def __inner_draw_image(self, image_path: str) -> None:
