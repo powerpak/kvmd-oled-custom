@@ -79,6 +79,7 @@ async def _run(options: argparse.Namespace) -> None:  # pylint: disable=too-many
     if options.display not in luma_cmdline.get_display_types()["emulator"]:
         logger.info("Iface: %s", options.interface)
     logger.info("Display: %s", options.display)
+    logger.info("Font: %s", options.font)
 
     device = _create_device(options)
     screen = Screen(
