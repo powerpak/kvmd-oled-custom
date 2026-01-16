@@ -61,7 +61,7 @@ class Sensors:  # pylint: disable=too-many-instance-attributes
         self.__s_cpu = ""
         self.__s_mem = ""
 
-        hb = itertools.cycle(r" " if hide_text_spinner else r"/-\|")
+        hb = itertools.cycle([r"  "] if hide_text_spinner else r"/-\|")
         self.__sensors = {
             "hb":      (lambda: next(hb)),
             "fqdn":    (lambda: (self.__s_fqdn or "<no-fqdn>")),
