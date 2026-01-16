@@ -189,7 +189,7 @@ def main() -> None:
         if action.dest == 'display' and action.choices is not None:
             action.choices = list(action.choices) + ['ssd1305']
             break
-    parser.add_argument("--font", default="@ProggySquare.ttf", type=(lambda arg: _get_data_path("fonts", arg)), help="Font path")
+    parser.add_argument("--font", default="@ProggySquare-16.ttf", type=(lambda arg: _get_data_path("fonts", arg)), help="Font path")
     parser.add_argument("--font-size", default=16, type=int, help="Font size")
     parser.add_argument("--font-spacing", default=2, type=int, help="Font line spacing")
     parser.add_argument("--offset-x", default=0, type=int, help="Horizontal offset")
