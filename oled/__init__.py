@@ -145,8 +145,7 @@ async def _run(options: argparse.Namespace) -> None:  # pylint: disable=too-many
 
                 async def draw_and_sleep(text: str) -> None:
                     await screen.set_contrast(options.low_contrast if sensors.has_clients() else options.contrast)
-                    await screen.draw_text(sensors.render(text))
-                    await screen.draw_spinner()
+                    await screen.draw_text_and_spinner(sensors.render(text))
                     await asyncio.sleep(options.interval)
 
                 if device.height >= 64:
