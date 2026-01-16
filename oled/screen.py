@@ -41,12 +41,18 @@ class Screen:  # pylint: disable=too-many-instance-attributes
         font: ImageFont.FreeTypeFont,
         font_spacing: int,
         offset: tuple[int, int],
+        spinner_coords: tuple[int, int] | None
     ) -> None:
 
         self.__device = device
         self.__font = font
         self.__font_spacing = font_spacing
         self.__offset = offset
+
+        self.__spinner_coords = spinner_coords
+        self.__spinner_angle = 0
+        self.__spinner_radius = 5
+        self.__spinner_angle_increment = 30
 
         self.__swim_interval = 0.0
         self.__swim_offset_x = 0
@@ -64,6 +70,9 @@ class Screen:  # pylint: disable=too-many-instance-attributes
     async def draw_text(self, text: str) -> None:
         await aiotools.run_async(self.__inner_draw_text, text)
 
+    async def draw_spinner(self) -> None:
+        await aiotools.run_async(self.__inner_draw_spinner)
+
     async def draw_image(self, image_path: str) -> None:
         await aiotools.run_async(self.__inner_draw_image, image_path)
 
@@ -73,6 +82,17 @@ class Screen:  # pylint: disable=too-many-instance-attributes
     def __inner_draw_text(self, text: str) -> None:
         with luma_canvas(self.__device) as draw:
             draw.multiline_text(self.__get_offset(), text, font=self.__font, spacing=self.__font_spacing, fill="white")
+
+    def __inner_draw_spinner(self) -> None:
+        if self.__spinner_coords is None: return
+        offset = self.__get_offset()
+        x0 = offset[0] + self.__spinner_coords[0] - self.__spinner_radius
+        x1 = offset[0] + self.__spinner_coords[0] + self.__spinner_radius
+        y0 = offset[1] + self.__spinner_coords[1] - self.__spinner_radius
+        y1 = offset[1] + self.__spinner_coords[1] + self.__spinner_radius
+        with luma_canvas(self.__device) as draw:
+            draw.chord([x0, x1, y0, y1], self.__spinner_angle, (self.__spinner_angle + 180) % 360)
+        self.__spinner_angle = (self.__spinner_angle + self.__spinner_angle_increment) % 360
 
     def __inner_draw_image(self, image_path: str) -> None:
         with luma_canvas(self.__device) as draw:

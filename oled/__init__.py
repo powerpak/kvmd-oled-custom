@@ -87,6 +87,7 @@ async def _run(options: argparse.Namespace) -> None:  # pylint: disable=too-many
         font=ImageFont.truetype(options.font, options.font_size),
         font_spacing=options.font_spacing,
         offset=(options.offset_x, options.offset_y),
+        spinner_coords=options.draw_spinner
     )
     logger.info("Size: %dx%d", device.width, device.height)
 
@@ -137,6 +138,7 @@ async def _run(options: argparse.Namespace) -> None:  # pylint: disable=too-many
                     ) if options.kvmd_unix else None
                 ),
                 fahrenheit=options.fahrenheit,
+                hide_text_spinner=bool(options.draw_spinner)
             ) as sensors:
 
                 await screen.set_swimming(60, 3)
@@ -144,6 +146,7 @@ async def _run(options: argparse.Namespace) -> None:  # pylint: disable=too-many
                 async def draw_and_sleep(text: str) -> None:
                     await screen.set_contrast(options.low_contrast if sensors.has_clients() else options.contrast)
                     await screen.draw_text(sensors.render(text))
+                    await screen.draw_spinner()
                     await asyncio.sleep(options.interval)
 
                 if device.height >= 64:
@@ -192,6 +195,7 @@ def main() -> None:
     parser.add_argument("--font", default="@ProggySquare-16.ttf", type=(lambda arg: _get_data_path("fonts", arg)), help="Font path")
     parser.add_argument("--font-size", default=16, type=int, help="Font size")
     parser.add_argument("--font-spacing", default=2, type=int, help="Font line spacing")
+    parser.add_argument("--draw-spinner", default=None, nargs=2, type=int, metavar=('X', 'Y'), help="Draw a spinner at these coordinates")
     parser.add_argument("--offset-x", default=0, type=int, help="Horizontal offset")
     parser.add_argument("--offset-y", default=0, type=int, help="Vertical offset")
     parser.add_argument("--interval", default=0.5, type=float, help="Screens interval")
@@ -222,6 +226,7 @@ def main() -> None:
             luma_cmdline.load_config(options.config)
             + ia.args
         )
+    options.draw_spinner = options.draw_spinner and tuple(options.draw_spinner)
     options.contrast = min(max(options.contrast, 0), 255)
     options.low_contrast = min(max(options.low_contrast, 0), 255)
 
