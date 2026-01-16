@@ -21,6 +21,7 @@
 
 
 import time
+import math
 
 import async_lru
 
@@ -79,16 +80,23 @@ class Screen:  # pylint: disable=too-many-instance-attributes
     async def draw_white(self) -> None:
         await aiotools.run_async(self.__inner_draw_white)
 
+    def __calculate_spinner_coords(self, offset, start_angle, end_angle) -> list[int]:
+        if self.__spinner_coords is None: raise RuntimeError("Invalid spinner state")
+        start_rad = math.radians(start_angle)
+        end_rad = math.radians(end_angle)
+        x0 = offset[0] + self.__spinner_coords[0] + self.__spinner_radius * math.cos(start_rad)
+        y0 = offset[1] + self.__spinner_coords[1] + self.__spinner_radius * math.sin(start_rad)
+        x1 = offset[0] + self.__spinner_coords[0] + self.__spinner_radius * math.cos(end_rad)
+        y1 = offset[1] + self.__spinner_coords[1] + self.__spinner_radius * math.sin(end_rad)
+        return [x0, y0, x1, y1]
+
     def __inner_draw_text_and_spinner(self, text: str, draw_spinner: bool = True) -> None:
         offset = self.__get_offset()
         with luma_canvas(self.__device) as draw:
             draw.multiline_text(self.__get_offset(), text, font=self.__font, spacing=self.__font_spacing, fill="white")
             if self.__spinner_coords is None or not draw_spinner: return
-            x0 = offset[0] + self.__spinner_coords[0] - self.__spinner_radius
-            x1 = offset[0] + self.__spinner_coords[0] + self.__spinner_radius
-            y0 = offset[1] + self.__spinner_coords[1] - self.__spinner_radius
-            y1 = offset[1] + self.__spinner_coords[1] + self.__spinner_radius
-            draw.chord([x0, y0, x1, y1], self.__spinner_angle, (self.__spinner_angle + 180) % 360, outline="white")
+            coords = self.__calculate_spinner_coords(offset, self.__spinner_angle, (self.__spinner_angle + 180) % 360)
+            draw.line(coords, fill="white")
             self.__spinner_angle = (self.__spinner_angle + self.__spinner_angle_increment) % 360
 
     def __inner_draw_image(self, image_path: str) -> None:
