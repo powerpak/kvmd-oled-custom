@@ -68,10 +68,10 @@ class Screen:  # pylint: disable=too-many-instance-attributes
         await aiotools.run_async(self.__device.contrast, contrast)
 
     async def draw_text(self, text: str) -> None:
-        await aiotools.run_async(self.__inner_draw_text_and_spinner, text, draw_spinner=False)
+        await aiotools.run_async(self.__inner_draw_text_and_spinner, text, False)
 
     async def draw_text_and_spinner(self, text: str) -> None:
-        await aiotools.run_async(self.__inner_draw_text_and_spinner, text, draw_spinner=True)
+        await aiotools.run_async(self.__inner_draw_text_and_spinner, text, True)
 
     async def draw_image(self, image_path: str) -> None:
         await aiotools.run_async(self.__inner_draw_image, image_path)
