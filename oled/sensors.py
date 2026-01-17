@@ -24,6 +24,7 @@ import asyncio
 import socket
 import itertools
 import types
+import subprocess
 
 from typing import Self
 
@@ -42,15 +43,22 @@ class Sensors:  # pylint: disable=too-many-instance-attributes
         self,
         kvmd: (KvmdClient | None),
         fahrenheit: bool,
+        autossh_ip: str | None,
         hide_text_spinner: bool,
     ) -> None:
 
         self.__kvmd = kvmd
         self.__fahrenheit = fahrenheit
 
+        self.__autossh_ip_and_port = None
+        if autossh_ip:
+            if ":" not in autossh_ip: autossh_ip += ":22"
+            self.__autossh_ip_and_port = autossh_ip
+
         self.__fqdn_task: (asyncio.Task | None) = None
         self.__iface_task: (asyncio.Task | None) = None
         self.__kvmd_task: (asyncio.Task | None) = None
+        self.__autossh_task: (asyncio.Task | None) = None
 
         self.__clients_count = -1
         self.__s_fqdn = ""
@@ -60,6 +68,7 @@ class Sensors:  # pylint: disable=too-many-instance-attributes
         self.__s_temp = ""
         self.__s_cpu = ""
         self.__s_mem = ""
+        self.__s_autossh = ""
 
         hb = itertools.cycle([r"  "] if hide_text_spinner else r"/-\|")
         self.__sensors = {
@@ -72,6 +81,7 @@ class Sensors:  # pylint: disable=too-many-instance-attributes
             "cpu":     (lambda: (self.__s_cpu or "?")),
             "mem":     (lambda: (self.__s_mem or "?")),
             "clients": (lambda: ("?" if self.__clients_count < 0 else str(self.__clients_count))),
+            "autossh": (lambda: (self.__s_autossh or "?"))
         }
 
     def has_clients(self) -> int:
@@ -87,6 +97,7 @@ class Sensors:  # pylint: disable=too-many-instance-attributes
         assert self.__fqdn_task is None
         self.__fqdn_task = asyncio.create_task(self.__fqdn_task_loop())
         self.__iface_task = asyncio.create_task(self.__iface_task_loop())
+        self.__autossh_task = asyncio.create_task(self.__autossh_task_loop())
         if self.__kvmd:
             self.__kvmd_task = asyncio.create_task(self.__kvmd_task_loop())
         return self
@@ -119,6 +130,27 @@ class Sensors:  # pylint: disable=too-many-instance-attributes
             except Exception:
                 self.__s_iface = ""
                 self.__s_ip = ""
+            await asyncio.sleep(3)
+
+    async def __autossh_task_loop(self) -> None:
+        while True:
+            try:
+                # verify that an autossh process is running
+                pgrep = subprocess.run(["pgrep", "autossh"], capture_output=True, text=True)
+                pid_found = pgrep.returncode == 0
+
+                # verify that an established connection exists to the remote IP address and port
+                conn_found = False
+                if self.__autossh_ip_and_port:
+                    netstat = subprocess.run(["ss", "-tnp"], capture_output=True, text=True)
+                    for line in netstat.stdout.split("\n"):
+                        if line[0:5] == "ESTAB" and self.__autossh_ip_and_port in line:
+                            conn_found = True
+                            break
+
+                self.__s_autossh = "up" if pid_found and conn_found else "down"
+            except Exception:
+                self.__s_autossh = ""
             await asyncio.sleep(3)
 
     async def __kvmd_task_loop(self) -> None:

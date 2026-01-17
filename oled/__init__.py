@@ -44,6 +44,13 @@ from kvmd.apps import init
 from .screen import Screen
 from .sensors import Sensors
 
+LARGE_SCREEN_FORMAT = ("{fqdn}\n{ip}\niface: {iface}\ntemp: {temp}\n"
+    "cpu: {cpu} mem: {mem}\n({hb} {clients}) {uptime}")
+
+SMALL_SCREEN_FORMAT = (
+    "autossh: {autossh}\n({hb} {clients}) {uptime}\ntemp: {temp}",
+    "{ip}\n({hb}) iface: {iface}\ncpu: {cpu} mem: {mem}"
+)
 
 # =====
 def _get_data_path(subdir: str, name: str) -> str:
@@ -65,6 +72,7 @@ def _create_device(options: argparse.Namespace) -> luma_device:
     if ssd1305_workaround: 
         options.display = "ssd1306"
     device = luma_cmdline.create_device(options)
+    if not device: raise RuntimeError("Failure to create luma device")
     if ssd1305_workaround:
         device.command(0xDA, 0x12) # Use alternate COM pin configuration
         device._colstart += 4
@@ -138,7 +146,8 @@ async def _run(options: argparse.Namespace) -> None:  # pylint: disable=too-many
                     ) if options.kvmd_unix else None
                 ),
                 fahrenheit=options.fahrenheit,
-                hide_text_spinner=bool(options.draw_spinner)
+                autossh_ip=options.autossh_ip,
+                hide_text_spinner=bool(options.draw_spinner),
             ) as sensors:
 
                 await screen.set_swimming(60, 3)
@@ -150,17 +159,12 @@ async def _run(options: argparse.Namespace) -> None:  # pylint: disable=too-many
 
                 if device.height >= 64:
                     while stop_reason is None:
-                        text = "{fqdn}\n{ip}\niface: {iface}\ntemp: {temp}\ncpu: {cpu} mem: {mem}\n({hb} {clients}) {uptime}"
-                        await draw_and_sleep(text)
+                        await draw_and_sleep(LARGE_SCREEN_FORMAT)
                 else:
-                    summary = True
+                    page = 0
                     while stop_reason is None:
-                        if summary:
-                            text = "{fqdn}\n({hb} {clients}) {uptime}\ntemp: {temp}"
-                        else:
-                            text = "{ip}\n({hb}) iface: {iface}\ncpu: {cpu} mem: {mem}"
-                        await draw_and_sleep(text)
-                        summary = bool(time.monotonic() // 6 % 2)
+                        await draw_and_sleep(SMALL_SCREEN_FORMAT[page])
+                        page = int(time.monotonic() // 6 % 2)
 
             if stop_reason is not None:
                 if len(stop_reason) > 0:
@@ -207,6 +211,7 @@ def main() -> None:
     parser.add_argument("--contrast", type=int, help="Set OLED contrast, values from 0 to 255")
     parser.add_argument("--low-contrast", type=int, help="Set OLED contrast when device is used")
     parser.add_argument("--fahrenheit", action="store_true", help="Display temperature in Fahrenheit instead of Celsius")
+    parser.add_argument("--autossh-ip", default=None, help="When checking autossh status, verify an active connection with this IP address[:port]")
     # parser.add_argument("--kvmd-unix", help="Ask some info from KVMD like a clients count")
     # parser.add_argument("--kvmd-timeout", type=float, help="Timeout for KVMD requests")
     parser.set_defaults(
