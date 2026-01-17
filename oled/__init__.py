@@ -49,7 +49,7 @@ LARGE_SCREEN_FORMAT = ("{fqdn}\n{ip}\niface: {iface}\ntemp: {temp}\n"
 
 SMALL_SCREEN_FORMAT = (
     "autossh: {autossh}\n({hb} {clients}) {uptime}\ntemp: {temp}",
-    "{ip}\n({hb}) iface: {iface}\ncpu: {cpu} mem: {mem}"
+    "{ip}\n({hb} {clients}) iface: {iface}\ncpu: {cpu} mem: {mem}"
 )
 
 # =====
