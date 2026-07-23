@@ -84,11 +84,22 @@ Waveshare and Adafruit 2.23" OLED HATs, which live on BCM pins **16, 20 and 21**
 ```
 
 `RPi.GPIO` is only imported when `--sleep-timeout` is non-zero, so the rest of
-the daemon keeps working without it. If `RPi.GPIO` is missing or the GPIO
-hardware is inaccessible, the daemon logs an error and falls back to leaving
-the screen always on rather than failing to start. Make sure the `RPi.GPIO`
-package is installed for the `kvmd-oled` user, and that the user is in the
-`gpio` group (already set up in the previous section).
+the daemon keeps working without it. The wake buttons are **polled** with
+`GPIO.input()` rather than armed with edge-detection callbacks: edge detection
+in `RPi.GPIO` (`add_event_detect`) is implemented through the legacy sysfs
+GPIO class (`/sys/class/gpio/export` and the per-pin `edge` files), which is
+root-owned and therefore unavailable to the non-root `kvmd-oled` user -- it
+fails with "Failed to add edge detection". Polling only needs memory-mapped
+GPIO via `/dev/gpiomem`, the same access the display already uses, and runs at
+~50 ms granularity, well below human tap speed.
+
+Because `--sleep-timeout` is an explicit opt-in, a failure to initialize the
+wake buttons is treated as **fatal**: the daemon logs a critical error and
+exits rather than silently running with the screen always on (which would
+defeat the purpose of the feature and hide the problem). Make sure the
+`RPi.GPIO` package is installed for the `kvmd-oled` user and that the user is
+in the `gpio` group with `/dev/gpiomem` accessible (already set up in the
+previous section).
 
 ### Create a `systemd` service
 

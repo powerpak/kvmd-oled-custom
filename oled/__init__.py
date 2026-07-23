@@ -153,15 +153,29 @@ async def _run(options: argparse.Namespace) -> None:  # pylint: disable=too-many
 
                 # The sleep-timeout feature clears the screen after a period of
                 # inactivity to avoid OLED burn-in, then wakes on a button press.
-                # RPi.GPIO is optional: if it (or the hardware) is unavailable we
-                # simply keep the screen always on, as before.
+                # RPi.GPIO is required when --sleep-timeout is non-zero: if the
+                # buttons can't be initialized, the daemon exits with a fatal
+                # error rather than silently running with the screen always on.
                 buttons: (Buttons | None) = None
                 if options.sleep_timeout > 0:
                     try:
                         buttons = Buttons(options.sleep_gpio)
                         logger.info("Sleep timeout: %s sec", options.sleep_timeout)
                     except Exception as ex:
-                        logger.error("Can't init GPIO buttons; sleep-timeout disabled: %s", ex)
+                        # --sleep-timeout was explicitly requested, so failing
+                        # to arm the wake buttons is a fatal error rather than
+                        # something to silently degrade from. Otherwise the
+                        # screen would just stay lit forever and the user would
+                        # have no idea their burn-in prevention isn't working.
+                        logger.critical(
+                            "Failed to initialize GPIO wake buttons required by "
+                            "--sleep-timeout=%s: %s. Ensure RPi.GPIO is installed "
+                            "and the kvmd-oled user can access GPIO (/dev/gpiomem, "
+                            "gpio group), or omit --sleep-timeout to keep the "
+                            "screen always on.",
+                            options.sleep_timeout, ex,
+                        )
+                        raise
                 sleep_timeout = options.sleep_timeout
 
                 await screen.set_swimming(60, 3)
