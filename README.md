@@ -55,6 +55,41 @@ At this point it is worth a `reboot` to see if all the changes stick. Then try i
     --display ssd1305 --interface spi --width 128 --height 32 --rotate 2
 ```
 
+### Prevent screen burn-in (optional sleep timeout)
+
+By default the OLED stays illuminated at all times. To reduce the risk of
+burn-in you can have the screen automatically clear itself after a period of
+inactivity and wake back up when a button is pressed. Add the `--sleep-timeout`
+option (in seconds) to the command line:
+
+```
+# sudo -u kvmd-oled ./kvmd-oled-custom \
+    --display ssd1305 --interface spi --width 128 --height 32 --rotate 2 \
+    --sleep-timeout 120
+```
+
+After 120 seconds without a button press the screen goes blank. The first
+button press wakes it again, and every subsequent press resets the timer, so
+the screen stays lit while the device is in use and only sleeps once you stop
+interacting with it. Pass `0` (the default) to disable the feature entirely.
+
+The wake buttons are read with [RPi.GPIO](https://sourceforge.net/p/raspberry-gpio-python/wiki/Home/)
+and are assumed to be wired active-low with the internal pull-up enabled (a
+press ties the GPIO pin to ground). This matches the three buttons on the
+Waveshare and Adafruit 2.23" OLED HATs, which live on BCM pins **16, 20 and 21**
+-- the default. To use different pins, pass `--sleep-gpio`:
+
+```
+--sleep-timeout 120 --sleep-gpio 5 6 12 13
+```
+
+`RPi.GPIO` is only imported when `--sleep-timeout` is non-zero, so the rest of
+the daemon keeps working without it. If `RPi.GPIO` is missing or the GPIO
+hardware is inaccessible, the daemon logs an error and falls back to leaving
+the screen always on rather than failing to start. Make sure the `RPi.GPIO`
+package is installed for the `kvmd-oled` user, and that the user is in the
+`gpio` group (already set up in the previous section).
+
 ### Create a `systemd` service
 
 If that works, you can create a `systemd` service (modified from the existing `kvmd-oled*` services) to start the script on boot and manage its lifecycle:
