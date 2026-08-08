@@ -41,6 +41,7 @@ from kvmd.clients.kvmd import KvmdClient
 
 from kvmd.apps import init
 
+from .buttons import Buttons
 from .screen import Screen
 from .sensors import Sensors
 
@@ -150,21 +151,82 @@ async def _run(options: argparse.Namespace) -> None:  # pylint: disable=too-many
                 hide_text_spinner=bool(options.draw_spinner),
             ) as sensors:
 
+                # The sleep-timeout feature clears the screen after a period of
+                # inactivity to avoid OLED burn-in, then wakes on a button press.
+                # RPi.GPIO is required when --sleep-timeout is non-zero: if the
+                # buttons can't be initialized, the daemon exits with a fatal
+                # error rather than silently running with the screen always on.
+                buttons: (Buttons | None) = None
+                if options.sleep_timeout > 0:
+                    try:
+                        buttons = Buttons(options.sleep_gpio)
+                        logger.info("Sleep timeout: %s sec", options.sleep_timeout)
+                    except Exception as ex:
+                        # --sleep-timeout was explicitly requested, so failing
+                        # to arm the wake buttons is a fatal error rather than
+                        # something to silently degrade from. Otherwise the
+                        # screen would just stay lit forever and the user would
+                        # have no idea their burn-in prevention isn't working.
+                        logger.critical(
+                            "Failed to initialize GPIO wake buttons required by "
+                            "--sleep-timeout=%s: %s. Ensure RPi.GPIO is installed "
+                            "and the kvmd-oled user can access GPIO (/dev/gpiomem, "
+                            "gpio group), or omit --sleep-timeout to keep the "
+                            "screen always on.",
+                            options.sleep_timeout, ex,
+                        )
+                        raise
+                sleep_timeout = options.sleep_timeout
+
                 await screen.set_swimming(60, 3)
 
-                async def draw_and_sleep(text: str) -> None:
-                    await screen.set_contrast(options.low_contrast if sensors.has_clients() else options.contrast)
-                    await screen.draw_text_and_spinner(sensors.render(text))
-                    await asyncio.sleep(options.interval)
+                last_activity = time.monotonic()
+                screen_off = False
 
-                if device.height >= 64:
-                    while stop_reason is None:
-                        await draw_and_sleep(LARGE_SCREEN_FORMAT)
-                else:
-                    page = 0
-                    while stop_reason is None:
-                        await draw_and_sleep(SMALL_SCREEN_FORMAT[page])
-                        page = int(time.monotonic() // 6 % 2)
+                async def draw_frame(text: str) -> None:
+                    await screen.set_contrast(
+                        options.low_contrast if sensors.has_clients() else options.contrast,
+                    )
+                    await screen.draw_text_and_spinner(sensors.render(text))
+
+                async def tick(text: str) -> None:
+                    nonlocal last_activity, screen_off
+                    # Inactive for long enough -> clear the screen and wait for a
+                    # button press to wake it. The wait is bounded so that signal
+                    # handlers (stop_reason) are still checked promptly.
+                    if buttons is not None and sleep_timeout > 0 \
+                            and (time.monotonic() - last_activity) >= sleep_timeout:
+                        if not screen_off:
+                            await screen.draw_text("")
+                            screen_off = True
+                            logger.info("OLED asleep (inactivity timeout)")
+                        if await buttons.wait_for_press(1.0):
+                            last_activity = time.monotonic()
+                            screen_off = False
+                            logger.info("OLED awake (button press)")
+                        return
+                    # Screen is on: draw a frame, then sleep for one interval --
+                    # but cut the sleep short if a button is pressed so the
+                    # inactivity timer resets immediately.
+                    await draw_frame(text)
+                    if buttons is not None:
+                        if await buttons.wait_for_press(options.interval):
+                            last_activity = time.monotonic()
+                    else:
+                        await asyncio.sleep(options.interval)
+
+                try:
+                    if device.height >= 64:
+                        while stop_reason is None:
+                            await tick(LARGE_SCREEN_FORMAT)
+                    else:
+                        page = 0
+                        while stop_reason is None:
+                            await tick(SMALL_SCREEN_FORMAT[page])
+                            page = int(time.monotonic() // 6 % 2)
+                finally:
+                    if buttons is not None:
+                        buttons.close()
 
             if stop_reason is not None:
                 if len(stop_reason) > 0:
@@ -212,6 +274,13 @@ def main() -> None:
     parser.add_argument("--low-contrast", type=int, help="Set OLED contrast when device is used")
     parser.add_argument("--fahrenheit", action="store_true", help="Display temperature in Fahrenheit instead of Celsius")
     parser.add_argument("--autossh-ip", default=None, help="When checking autossh status, verify an active connection with this IP address[:port]")
+    parser.add_argument("--sleep-timeout", default=0.0, type=float, metavar="SECONDS",
+        help="Clear the screen after this many seconds without button activity to prevent OLED burn-in. "
+             "A button press wakes the screen and resets the timer. 0 (default) disables the feature")
+    parser.add_argument("--sleep-gpio", default=[16, 20, 21], type=int, nargs="+", metavar="PIN",
+        help="BCM GPIO pin numbers of the wake buttons (active-low, internal pull-up). "
+             "Default: 16 20 21 (Waveshare/Adafruit 2.23\" OLED HAT buttons). "
+             "Requires RPi.GPIO when --sleep-timeout is non-zero")
     # parser.add_argument("--kvmd-unix", help="Ask some info from KVMD like a clients count")
     # parser.add_argument("--kvmd-timeout", type=float, help="Timeout for KVMD requests")
     parser.set_defaults(
@@ -233,5 +302,6 @@ def main() -> None:
     options.draw_spinner = options.draw_spinner and tuple(options.draw_spinner)
     options.contrast = min(max(options.contrast, 0), 255)
     options.low_contrast = min(max(options.low_contrast, 0), 255)
+    options.sleep_timeout = max(0.0, options.sleep_timeout)
 
     asyncio.run(_run(options))

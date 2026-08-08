@@ -55,6 +55,52 @@ At this point it is worth a `reboot` to see if all the changes stick. Then try i
     --display ssd1305 --interface spi --width 128 --height 32 --rotate 2
 ```
 
+### Prevent screen burn-in (optional sleep timeout)
+
+By default the OLED stays illuminated at all times. To reduce the risk of
+burn-in you can have the screen automatically clear itself after a period of
+inactivity and wake back up when a button is pressed. Add the `--sleep-timeout`
+option (in seconds) to the command line:
+
+```
+# sudo -u kvmd-oled ./kvmd-oled-custom \
+    --display ssd1305 --interface spi --width 128 --height 32 --rotate 2 \
+    --sleep-timeout 120
+```
+
+After 120 seconds without a button press the screen goes blank. The first
+button press wakes it again, and every subsequent press resets the timer, so
+the screen stays lit while the device is in use and only sleeps once you stop
+interacting with it. Pass `0` (the default) to disable the feature entirely.
+
+The wake buttons are read with [RPi.GPIO](https://sourceforge.net/p/raspberry-gpio-python/wiki/Home/)
+and are assumed to be wired active-low with the internal pull-up enabled (a
+press ties the GPIO pin to ground). This matches the three buttons on the
+Waveshare and Adafruit 2.23" OLED HATs, which live on BCM pins **16, 20 and 21**
+-- the default. To use different pins, pass `--sleep-gpio`:
+
+```
+--sleep-timeout 120 --sleep-gpio 5 6 12 13
+```
+
+`RPi.GPIO` is only imported when `--sleep-timeout` is non-zero, so the rest of
+the daemon keeps working without it. The wake buttons are **polled** with
+`GPIO.input()` rather than armed with edge-detection callbacks: edge detection
+in `RPi.GPIO` (`add_event_detect`) is implemented through the legacy sysfs
+GPIO class (`/sys/class/gpio/export` and the per-pin `edge` files), which is
+root-owned and therefore unavailable to the non-root `kvmd-oled` user -- it
+fails with "Failed to add edge detection". Polling only needs memory-mapped
+GPIO via `/dev/gpiomem`, the same access the display already uses, and runs at
+~50 ms granularity, well below human tap speed.
+
+Because `--sleep-timeout` is an explicit opt-in, a failure to initialize the
+wake buttons is treated as **fatal**: the daemon logs a critical error and
+exits rather than silently running with the screen always on (which would
+defeat the purpose of the feature and hide the problem). Make sure the
+`RPi.GPIO` package is installed for the `kvmd-oled` user and that the user is
+in the `gpio` group with `/dev/gpiomem` accessible (already set up in the
+previous section).
+
 ### Create a `systemd` service
 
 If that works, you can create a `systemd` service (modified from the existing `kvmd-oled*` services) to start the script on boot and manage its lifecycle:
