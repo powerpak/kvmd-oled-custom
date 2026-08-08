@@ -44,7 +44,7 @@ from kvmd.apps import init
 from .screen import Screen
 from .sensors import Sensors
 
-LARGE_SCREEN_FORMAT = ("{fqdn}\n{ip}\niface: {iface}\ntemp: {temp}\n"
+LARGE_SCREEN_FORMAT = ("autossh: {autossh}\n{ip}\niface: {iface}\ntemp: {temp}\n"
     "cpu: {cpu} mem: {mem}\n({hb} {clients}) {uptime}")
 
 SMALL_SCREEN_FORMAT = (
